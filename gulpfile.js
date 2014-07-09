@@ -6,6 +6,7 @@ var glob = require('glob').sync;
 var gulp = require('gulp');
 var karma = require('karma').server;
 var pkg = require('./package.json');
+var fs = require('fs');
 
 var argv = require('minimist')(process.argv.slice(2));
 
@@ -148,22 +149,37 @@ gulp.task('scripts', function() {
     .pipe(gulp.dest(buildConfig.dist));
 });
 
-/**
- * Build material-design.css
- */
-gulp.task('sass', function() {
-  return gulp.src(buildConfig.paths.scss)
+gulp.task('components', function() {
+  var exclude = ['animate'];
+  var entries = fs.readdirSync('src/components');
+  var components = _.xor(exclude, entries);
+  components.forEach(function(component) {
+    sass(component,
+      ['src/main.scss', 'src/components/' + component + '/*.scss'],
+      buildConfig.dist + '/components/' + component + '/');
+  })
+});
+
+var sass = function(component, sources, destination) {
+  return gulp.src(sources)
     .pipe(header(buildConfig.banner))
     .pipe(sass({
       // Normally, gulp-sass exits on error. This is good during normal builds.
       // During watch builds, we only want to log the error.
       errLogToConsole: argv._.indexOf('watch') > -1
     }))
-    .pipe(concat('material-design.css'))
-    .pipe(gulp.dest(buildConfig.dist))
+    .pipe(concat(component + '.css'))
+    .pipe(gulp.dest(destination))
     .pipe(gulpif(IS_RELEASE_BUILD, minifyCss()))
     .pipe(rename({ extname: '.min.css' }))
-    .pipe(gulp.dest(buildConfig.dist));
+    .pipe(gulp.dest(destination));
+};
+
+/**
+ * Build material-design.css
+ */
+gulp.task('sass', function() {
+  return sass('material-design', buildConfig.paths.scss, buildConfig.dist);
 });
 
 function enquote(str) {
